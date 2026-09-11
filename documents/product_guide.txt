@@ -1,0 +1,15 @@
+NovaTech Product Guide
+
+NovaTech offers three subscription plans: Basic, Standard, and Premium.
+
+The Basic plan includes access to core platform features and email support.
+
+The Standard plan includes all Basic features, advanced analytics, and priority customer support.
+
+The Premium plan includes all Standard features, dedicated account support, advanced reporting, and early access to new product features.
+
+Customers can upgrade their subscription plan at any time.
+
+Downgrades take effect at the beginning of the next billing cycle.
+
+Product features may vary depending on account type and subscription level.

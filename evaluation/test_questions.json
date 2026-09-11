@@ -1,0 +1,27 @@
+[
+    {
+        "question": "What is the maximum cancellation discount?",
+        "expected_answer": "20 percent",
+        "expected_source": "retention_policy.txt"
+    },
+    {
+        "question": "How long does it take to get my money back?",
+        "expected_answer": "5 to 10 business days",
+        "expected_source": "refundpolicy.txt"
+    },
+    {
+        "question": "What features are included in the Premium plan?",
+        "expected_answer": "dedicated account support, advanced reporting, and early access to new product features",
+        "expected_source": "product_guide.txt"
+    },
+    {
+        "question": "Can customers upgrade their subscription?",
+        "expected_answer": "Customers can upgrade their subscription plan at any time",
+        "expected_source": "product_guide.txt"
+    },
+    {
+        "question": "How are annual subscription refunds calculated?",
+        "expected_answer": "prorated based on the unused portion of the subscription",
+        "expected_source": "refundpolicy.txt"
+    }
+]
