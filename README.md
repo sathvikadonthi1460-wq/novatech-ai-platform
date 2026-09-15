@@ -19,11 +19,37 @@ NovaTech AI & Data Intelligence Platform brings these sources together through o
 
 The system automatically routes different types of user requests to the appropriate AI or data-processing component.
 
+
 ### The platform contains three major capabilities:
 
 1. **Company Knowledge Assistant — RAG**
 2. **Business Analytics — PostgreSQL**
 3. **Customer Churn Prediction — Machine Learning**
+
+---
+# 🖥️ Platform Preview
+
+## 📚 AI-Powered Company Knowledge
+
+Ask natural-language questions about NovaTech's internal documents using Retrieval-Augmented Generation (RAG).
+
+![Company Knowledge](screenshots/company_knowledge.png)
+
+---
+
+## 📊 Business Analytics Dashboard
+
+Explore customer metrics, subscription trends, churn insights, and PostgreSQL-powered business analytics.
+
+![Business Analytics](screenshots/business_analytics.png)
+
+---
+
+## 🔮 Customer Churn Prediction
+
+Predict churn risk for existing customers using NovaTech's trained Random Forest model.
+
+![Churn Prediction](screenshots/churn_prediction.png)
 
 ---
 
