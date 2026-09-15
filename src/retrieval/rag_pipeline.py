@@ -69,7 +69,43 @@ def generate_answer(prompt):
 # --------------------------------------------------
 # 4. Run complete RAG pipeline
 # --------------------------------------------------
+def answer_rag_question(question):
 
+    # 1. Hybrid retrieval
+    results = hybrid_search(
+        question,
+        top_k=5
+    )
+
+    # 2. Cross-encoder reranking
+    results = rerank_results(
+        question,
+        results,
+        top_k=3
+    )
+
+    # 3. Build context
+    context = build_context(results)
+
+    # 4. Create RAG prompt
+    prompt = create_prompt(
+        question,
+        context
+    )
+
+    # 5. Generate answer with Llama 3.2
+    answer = generate_answer(prompt)
+
+    # 6. Collect sources
+    sources = list({
+        result["filename"]
+        for result in results
+    })
+
+    return {
+        "answer": answer,
+        "sources": sources
+    }
 if __name__ == "__main__":
 
     question = "How long does it take to get my money back?"
