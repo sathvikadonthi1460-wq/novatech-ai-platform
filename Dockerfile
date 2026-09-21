@@ -35,7 +35,4 @@ COPY . .
 EXPOSE 8501
 
 # Start NovaTech
-CMD ["streamlit", "run", "app/streamlit_app.py", \
-     "--server.address=0.0.0.0", \
-     "--server.port=8501", \
-     "--server.headless=true"]
+CMD ["sh", "-c", "python src/embeddings/create_embeddings.py && streamlit run app/streamlit_app.py --server.address=0.0.0.0 --server.port=8501 --server.headless=true"]
