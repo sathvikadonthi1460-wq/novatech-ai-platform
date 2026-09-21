@@ -374,6 +374,7 @@ DB_PORT=5432
 DB_NAME=your_database_name
 DB_USER=your_database_user
 DB_PASSWORD=your_database_password
+
 ```
 
 Never commit the real `.env` file to GitHub.

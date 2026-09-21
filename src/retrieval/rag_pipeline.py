@@ -1,4 +1,5 @@
-from ollama import chat
+import os
+from groq import Groq
 from hybrid_search import hybrid_search
 from reranker import rerank_results
 
@@ -49,21 +50,28 @@ ANSWER:
 
 # --------------------------------------------------
 # 3. Generate answer using Llama 3.2
-# --------------------------------------------------
 
 def generate_answer(prompt):
+    """
+    Generate the final grounded answer using Groq's hosted LLM.
+    """
 
-    response = chat(
-        model="llama3.2",
+    client = Groq(
+        api_key=os.getenv("GROQ_API_KEY")
+    )
+
+    response = client.chat.completions.create(
+        model="openai/gpt-oss-120b",
         messages=[
             {
                 "role": "user",
                 "content": prompt
             }
-        ]
+        ],
+        temperature=0.2
     )
 
-    return response["message"]["content"]
+    return response.choices[0].message.content
 
 
 # --------------------------------------------------
