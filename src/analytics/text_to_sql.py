@@ -13,9 +13,21 @@ load_dotenv()
 # GROQ CLIENT
 # ==========================================================
 
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
-)
+import os
+from groq import Groq
+
+def get_groq_client():
+
+    api_key = os.getenv("GROQ_API_KEY")
+
+    if not api_key:
+        raise ValueError(
+            "GROQ_API_KEY environment variable is not configured."
+        )
+
+    return Groq(
+        api_key=api_key
+    )
 
 
 # ==========================================================
@@ -106,7 +118,7 @@ RULES:
 USER QUESTION:
 {question}
 """
-
+    client = get_groq_client()
     response = client.chat.completions.create(
         model="openai/gpt-oss-120b",
         messages=[
