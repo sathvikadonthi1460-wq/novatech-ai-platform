@@ -31,7 +31,7 @@ client = chromadb.PersistentClient(
     path="data/chroma"
 )
 
-collection = client.get_collection(
+collection = client.get_or_create_collection(
     name="novatech_documents"
 )
 
