@@ -15,41 +15,60 @@ def route_query(query):
 
     sql_phrases = [
 
-        "churn rate",
-        "highest churn",
-        "lowest churn",
+    # Churn analytics
+    "churn rate",
+    "highest churn",
+    "lowest churn",
+    "churned customers",
+    "churned customer",
+    "how many churned",
+    "number of churned",
 
-        "revenue",
-        "sales",
-        "total revenue",
+    # Revenue
+    "revenue",
+    "sales",
+    "total revenue",
+    "highest revenue",
+    "most revenue",
+    "average revenue",
 
-        "total customers",
-        "number of customers",
-        "how many customers",
+    # Customers
+    "total customers",
+    "number of customers",
+    "how many customers",
 
-        "customer segment",
-        "segment generates",
-        "segment revenue",
+    # Customer segments
+    "customer segment",
+    "segment generates",
+    "segment revenue",
+    "customers by segment",
+    "revenue by customer segment",
 
-        "transactions",
-        "transaction",
+    # Country analytics
+    "country",
+    "customers by country",
+    "customer by country",
+    "most customers",
+    "country has the most customers",
 
-        "average revenue",
-        "average price",
-        "average usage",
+    # Transactions
+    "transactions",
+    "transaction",
 
-        "business analytics",
-        "business data",
+    # Averages / usage
+    "average price",
+    "average usage",
 
-        "highest revenue",
-        "most revenue",
+    # Subscription analytics
+    "subscription plan has",
+    "plan has the highest",
+    "customers by plan",
 
-        "subscription plan has",
-        "plan has the highest",
-
-        "customers by plan",
-        "customers by segment"
+    # General analytics
+    "business analytics",
+    "business data"
     ]
+    
 
     if any(
         phrase in query

@@ -74,38 +74,56 @@ def generate_answer(prompt):
     return response.choices[0].message.content
 
 
-# --------------------------------------------------
-# 4. Run complete RAG pipeline
-# --------------------------------------------------
 def answer_rag_question(question):
 
-    # 1. Hybrid retrieval
+    # ======================================================
+    # 1. HYBRID RETRIEVAL
+    # ======================================================
+
+    # Retrieve a larger candidate set so broader questions
+    # can collect information from multiple relevant chunks.
     results = hybrid_search(
         question,
-        top_k=5
+        top_k=8
     )
 
-    # 2. Cross-encoder reranking
+    # ======================================================
+    # 2. CROSS-ENCODER RERANKING
+    # ======================================================
+
+    # Keep the best 5 chunks instead of only 3.
     results = rerank_results(
         question,
         results,
-        top_k=3
+        top_k=5
     )
 
-    # 3. Build context
+    # ======================================================
+    # 3. BUILD CONTEXT
+    # ======================================================
+
     context = build_context(results)
 
-    # 4. Create RAG prompt
+    # ======================================================
+    # 4. CREATE GROUNDED RAG PROMPT
+    # ======================================================
+
     prompt = create_prompt(
         question,
         context
     )
 
-    # 5. Generate answer with Llama 3.2
+    # ======================================================
+    # 5. GENERATE ANSWER
+    # ======================================================
+
     answer = generate_answer(prompt)
 
-    # 6. Collect sources
-    sources = list({
+    # ======================================================
+    # 6. COLLECT SOURCES
+    # ======================================================
+
+    sources = sorted({
         result["filename"]
         for result in results
     })
@@ -114,6 +132,7 @@ def answer_rag_question(question):
         "answer": answer,
         "sources": sources
     }
+    
 if __name__ == "__main__":
 
     question = "How long does it take to get my money back?"

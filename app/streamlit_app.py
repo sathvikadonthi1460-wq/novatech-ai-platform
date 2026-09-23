@@ -1,14 +1,11 @@
-import streamlit as st
 from pathlib import Path
 import sys
 import os
 
+import streamlit as st
 import pandas as pd
 import psycopg2
 from dotenv import load_dotenv
-
-
-load_dotenv()
 
 
 # ==========================================================
@@ -16,18 +13,21 @@ load_dotenv()
 # ==========================================================
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SRC_PATH = PROJECT_ROOT / "src"
 
 sys.path.append(
-    str(SRC_PATH / "router")
+    str(PROJECT_ROOT / "src" / "analytics")
 )
 
 sys.path.append(
-    str(SRC_PATH / "analytics")
+    str(PROJECT_ROOT / "src" / "router")
 )
 
 sys.path.append(
-    str(SRC_PATH / "ml")
+    str(PROJECT_ROOT / "src" / "retrieval")
+)
+
+sys.path.append(
+    str(PROJECT_ROOT / "src" / "ml")
 )
 
 
@@ -35,15 +35,18 @@ sys.path.append(
 # PROJECT IMPORTS
 # ==========================================================
 
-from unified_assistant import handle_query
-
 from sql_analytics import (
+    run_business_query,
     get_customer_ids,
     get_customer_churn_profile
 )
 
 from predict_churn import predict_churn
 
+from unified_assistant import handle_query
+
+
+load_dotenv()
 
 # ==========================================================
 # 3. STREAMLIT PAGE CONFIGURATION
@@ -59,7 +62,6 @@ st.set_page_config(
 # ==========================================================
 # 4. DATABASE FUNCTION
 # ==========================================================
-
 def load_business_data():
 
     connection = psycopg2.connect(
@@ -75,12 +77,81 @@ def load_business_data():
         c.customer_id,
         c.customer_segment,
         c.country,
+
         s.plan_name,
         s.monthly_price,
-        s.churned
+        s.churned,
+
+        COALESCE(
+            transaction_stats.total_revenue,
+            0
+        ) AS total_revenue,
+
+        COALESCE(
+            transaction_stats.transaction_count,
+            0
+        ) AS transaction_count,
+
+        COALESCE(
+            usage_stats.avg_logins,
+            0
+        ) AS avg_logins,
+
+        COALESCE(
+            usage_stats.avg_feature_usage,
+            0
+        ) AS avg_feature_usage,
+
+        COALESCE(
+            usage_stats.avg_session_minutes,
+            0
+        ) AS avg_session_minutes,
+
+        COALESCE(
+            ticket_stats.support_ticket_count,
+            0
+        ) AS support_ticket_count,
+
+        COALESCE(
+            ticket_stats.avg_resolution_hours,
+            0
+        ) AS avg_resolution_hours
+
     FROM customers c
+
     JOIN subscriptions s
-        ON c.customer_id = s.customer_id;
+        ON c.customer_id = s.customer_id
+
+    LEFT JOIN (
+        SELECT
+            customer_id,
+            SUM(amount) AS total_revenue,
+            COUNT(*) AS transaction_count
+        FROM transactions
+        GROUP BY customer_id
+    ) transaction_stats
+        ON c.customer_id = transaction_stats.customer_id
+
+    LEFT JOIN (
+        SELECT
+            customer_id,
+            AVG(login_count) AS avg_logins,
+            AVG(feature_usage_count) AS avg_feature_usage,
+            AVG(session_minutes) AS avg_session_minutes
+        FROM product_usage
+        GROUP BY customer_id
+    ) usage_stats
+        ON c.customer_id = usage_stats.customer_id
+
+    LEFT JOIN (
+        SELECT
+            customer_id,
+            COUNT(*) AS support_ticket_count,
+            AVG(resolution_hours) AS avg_resolution_hours
+        FROM support_tickets
+        GROUP BY customer_id
+    ) ticket_stats
+        ON c.customer_id = ticket_stats.customer_id;
     """
 
     df = pd.read_sql(
@@ -91,7 +162,6 @@ def load_business_data():
     connection.close()
 
     return df
-
 
 # ==========================================================
 # 5. PAGE TITLE
@@ -402,23 +472,22 @@ if page == "Company Knowledge":
             st.warning(
                 "Please enter a company knowledge question."
             )
-  # ==========================================================
-# BUSINESS ANALYTICS
-# ==========================================================
-
 elif page == "Business Analytics":
+
+    # ======================================================
+    # BUSINESS ANALYTICS
+    # ======================================================
 
     st.header("📊 Business Analytics")
 
     st.write(
-        "Monitor NovaTech's customer performance, subscription "
-        "trends, and churn using live business data from PostgreSQL."
+        "Monitor NovaTech's customer performance, revenue, churn, "
+        "subscriptions, product usage, and support activity using "
+        "live PostgreSQL business data."
     )
 
     st.info(
-        "Explore Customers • Revenue • Churn • Customer Segments • "
-        "Subscription Plans • Transactions • Product Usage • "
-        "Support Tickets"
+        "Live Analytics • PostgreSQL • AI Text-to-SQL"
     )
 
     st.divider()
@@ -426,7 +495,7 @@ elif page == "Business Analytics":
     try:
 
         # ==================================================
-        # LOAD BUSINESS DATA
+        # LOAD DATA
         # ==================================================
 
         df = load_business_data()
@@ -435,282 +504,353 @@ elif page == "Business Analytics":
         # KPI CALCULATIONS
         # ==================================================
 
-        total_customers = len(df)
+        total_customers = df["customer_id"].nunique()
 
-        active_customers = (
-            df["churned"] == False
-        ).sum()
+        total_revenue = df["total_revenue"].sum()
 
         churned_customers = (
-            df["churned"] == True
-        ).sum()
+            df.loc[df["churned"] == True, "customer_id"]
+            .nunique()
+        )
+
+        active_customers = (
+            df.loc[df["churned"] == False, "customer_id"]
+            .nunique()
+        )
 
         if total_customers > 0:
-
             churn_rate = (
                 churned_customers
                 / total_customers
                 * 100
             )
 
-        else:
+            avg_revenue = (
+                total_revenue
+                / total_customers
+            )
 
+        else:
             churn_rate = 0
+            avg_revenue = 0
 
         # ==================================================
-        # BUSINESS OVERVIEW
+        # KPI CARDS
         # ==================================================
 
         st.markdown("### 📌 Business Overview")
 
-        col1, col2, col3, col4 = st.columns(4)
+        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
-        with col1:
-
+        with kpi1:
             st.metric(
-                label="Total Customers",
-                value=f"{total_customers:,}"
+                "Total Customers",
+                f"{total_customers:,}"
             )
 
-        with col2:
-
+        with kpi2:
             st.metric(
-                label="Active Customers",
-                value=f"{active_customers:,}"
+                "Total Revenue",
+                f"${total_revenue:,.2f}"
             )
 
-        with col3:
-
+        with kpi3:
             st.metric(
-                label="Churned Customers",
-                value=f"{churned_customers:,}"
+                "Churn Rate",
+                f"{churn_rate:.2f}%"
             )
 
-        with col4:
-
+        with kpi4:
             st.metric(
-                label="Churn Rate",
-                value=f"{churn_rate:.2f}%"
+                "Avg Revenue / Customer",
+                f"${avg_revenue:,.2f}"
             )
+
+        st.caption(
+            f"Active customers: {active_customers:,}  •  "
+            f"Churned customers: {churned_customers:,}"
+        )
 
         st.divider()
 
         # ==================================================
-        # CUSTOMER DISTRIBUTION
-        # ==================================================
-
-        st.markdown("### 👥 Customer Distribution")
-
-        chart_col1, chart_col2 = st.columns(2)
-
-        # --------------------------------------------------
-        # CUSTOMERS BY PLAN
-        # --------------------------------------------------
-
-        with chart_col1:
-
-            st.markdown(
-                "#### Customers by Subscription Plan"
-            )
-
-            plan_counts = (
-                df["plan_name"]
-                .value_counts()
-                .rename("Customers")
-            )
-
-            st.bar_chart(
-                plan_counts
-            )
-
-        # --------------------------------------------------
-        # CUSTOMERS BY SEGMENT
-        # --------------------------------------------------
-
-        with chart_col2:
-
-            st.markdown(
-                "#### Customers by Segment"
-            )
-
-            segment_counts = (
-                df["customer_segment"]
-                .value_counts()
-                .rename("Customers")
-            )
-
-            st.bar_chart(
-                segment_counts
-            )
-
-        st.divider()
-
-        # ==================================================
-        # CHURN INSIGHTS
-        # ==================================================
-
-        st.markdown("### 📉 Churn Insights")
-
-        st.write(
-            "Compare customer churn across NovaTech's "
-            "subscription plans."
-        )
-
-        churn_by_plan = (
-            df
-            .groupby("plan_name")["churned"]
-            .mean()
-            .mul(100)
-            .round(2)
-            .rename("Churn Rate (%)")
-        )
-
-        st.bar_chart(
-            churn_by_plan
-        )
-
-        # --------------------------------------------------
-        # SIMPLE CHURN INSIGHT
-        # --------------------------------------------------
-
-        if not churn_by_plan.empty:
-
-            highest_churn_plan = (
-                churn_by_plan.idxmax()
-            )
-
-            highest_churn_value = (
-                churn_by_plan.max()
-            )
-
-            st.info(
-                f"📌 {highest_churn_plan} currently has the "
-                f"highest churn rate at "
-                f"{highest_churn_value:.2f}%."
-            )
-
-        # ==================================================
-        # CUSTOMER DATA
-        # ==================================================
-
-        st.markdown("### 🗂️ Customer Data")
-
-        with st.expander(
-            "View Customer Dataset"
-        ):
-
-            st.dataframe(
-                df,
-                use_container_width=True,
-                hide_index=True
-            )
-
-        st.divider()
-
-        # ==================================================
-        # ASK BUSINESS ANALYTICS
+        # REVENUE + SUBSCRIPTION ANALYTICS
         # ==================================================
 
         st.markdown(
-            "### 💬 Ask About the Business Data"
+            "### 💰 Revenue & Subscription Analytics"
+        )
+
+        chart1, chart2 = st.columns(2)
+
+        with chart1:
+
+            revenue_segment = (
+                df.groupby(
+                    "customer_segment",
+                    as_index=False
+                )["total_revenue"]
+                .sum()
+                .sort_values(
+                    "total_revenue",
+                    ascending=False
+                )
+            )
+
+            st.markdown(
+                "**Revenue by Customer Segment**"
+            )
+
+            st.bar_chart(
+                revenue_segment,
+                x="customer_segment",
+                y="total_revenue",
+                use_container_width=True
+            )
+
+        with chart2:
+
+            plan_customers = (
+                df.groupby(
+                    "plan_name"
+                )["customer_id"]
+                .nunique()
+                .sort_values(
+                    ascending=False
+                )
+            )
+
+            st.markdown(
+                "**Customers by Subscription Plan**"
+            )
+
+            st.bar_chart(
+                plan_customers,
+                use_container_width=True
+            )
+
+        st.divider()
+
+        # ==================================================
+        # CHURN + COUNTRY ANALYTICS
+        # ==================================================
+
+        st.markdown(
+            "### 📉 Customer & Churn Analytics"
+        )
+
+        chart3, chart4 = st.columns(2)
+
+        with chart3:
+
+            churn_plan = (
+                df.groupby("plan_name")["churned"]
+                .mean()
+                .mul(100)
+                .round(2)
+                .sort_values(
+                    ascending=False
+                )
+            )
+
+            st.markdown(
+                "**Churn Rate by Subscription Plan (%)**"
+            )
+
+            st.bar_chart(
+                churn_plan,
+                use_container_width=True
+            )
+
+        with chart4:
+
+            country_customers = (
+                df.groupby("country")["customer_id"]
+                .nunique()
+                .sort_values(
+                    ascending=False
+                )
+            )
+
+            st.markdown(
+                "**Customers by Country**"
+            )
+
+            st.bar_chart(
+                country_customers,
+                use_container_width=True
+            )
+
+        st.divider()
+
+        # ==================================================
+        # PRODUCT USAGE + SUPPORT
+        # ==================================================
+
+        st.markdown(
+            "### ⚙️ Product Usage & Customer Support"
+        )
+
+        chart5, chart6 = st.columns(2)
+
+        with chart5:
+
+            usage_segment = (
+                df.groupby(
+                    "customer_segment"
+                )["avg_feature_usage"]
+                .mean()
+                .sort_values(
+                    ascending=False
+                )
+            )
+
+            st.markdown(
+                "**Average Feature Usage by Segment**"
+            )
+
+            st.bar_chart(
+                usage_segment,
+                use_container_width=True
+            )
+
+        with chart6:
+
+            support_segment = (
+                df.groupby(
+                    "customer_segment"
+                )["support_ticket_count"]
+                .mean()
+                .sort_values(
+                    ascending=False
+                )
+            )
+
+            st.markdown(
+                "**Average Support Tickets by Segment**"
+            )
+
+            st.bar_chart(
+                support_segment,
+                use_container_width=True
+            )
+
+        st.divider()
+
+        # ==================================================
+        # CUSTOMER DATA TABLE
+        # ==================================================
+
+        st.markdown("### 👥 Customer Analytics Data")
+
+        display_columns = [
+            "customer_id",
+            "customer_segment",
+            "country",
+            "plan_name",
+            "monthly_price",
+            "churned",
+            "total_revenue",
+            "transaction_count",
+            "avg_logins",
+            "avg_feature_usage",
+            "avg_session_minutes",
+            "support_ticket_count",
+            "avg_resolution_hours"
+        ]
+
+        st.dataframe(
+            df[display_columns],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.divider()
+
+        # ==================================================
+        # AI BUSINESS ANALYTICS
+        # ==================================================
+
+        st.markdown(
+            "### 🤖 Ask About the Business Data"
         )
 
         st.write(
-            "Ask a business question and NovaTech will "
-            "query the PostgreSQL database to generate "
-            "an answer."
+            "Ask a natural-language business question. "
+            "Common questions use predefined SQL, while new "
+            "questions can be translated into safe, read-only "
+            "PostgreSQL using AI Text-to-SQL."
         )
+
+        # ==================================================
+        # EXAMPLE QUESTIONS
+        # ==================================================
 
         st.markdown("#### Try an example")
 
-        q1, q2, q3 = st.columns(3)
+        example1, example2, example3 = st.columns(3)
 
-        # --------------------------------------------------
-        # QUESTION 1
-        # --------------------------------------------------
+        if "business_question" not in st.session_state:
+            st.session_state["business_question"] = ""
 
-        with q1:
+        with example1:
 
             if st.button(
-                "💰 Highest Revenue Segment",
-                use_container_width=True,
-                key="business_revenue_question"
+                "💰 Revenue by Segment",
+                use_container_width=True
             ):
 
                 st.session_state[
                     "business_question"
                 ] = (
-                    "Which customer segment "
-                    "generates the most revenue?"
+                    "Show me revenue by customer segment."
                 )
 
-        # --------------------------------------------------
-        # QUESTION 2
-        # --------------------------------------------------
-
-        with q2:
+        with example2:
 
             if st.button(
                 "📉 Highest Churn Plan",
-                use_container_width=True,
-                key="business_churn_question"
+                use_container_width=True
             ):
 
                 st.session_state[
                     "business_question"
                 ] = (
-                    "Which plan has the highest "
-                    "churn rate?"
+                    "Which plan has the highest churn rate?"
                 )
 
-        # --------------------------------------------------
-        # QUESTION 3
-        # --------------------------------------------------
-
-        with q3:
+        with example3:
 
             if st.button(
-                "👥 Total Customers",
-                use_container_width=True,
-                key="business_customer_question"
+                "🏆 Top Revenue Customers",
+                use_container_width=True
             ):
 
                 st.session_state[
                     "business_question"
                 ] = (
-                    "How many total customers "
-                    "are there?"
+                    "Show the top 5 customers by total revenue."
                 )
 
-        # --------------------------------------------------
-        # SESSION STATE
-        # --------------------------------------------------
-
-        if (
-            "business_question"
-            not in st.session_state
-        ):
-
-            st.session_state[
-                "business_question"
-            ] = ""
-
-        # --------------------------------------------------
+        # ==================================================
         # QUESTION INPUT
-        # --------------------------------------------------
+        # ==================================================
 
         business_question = st.text_input(
-            "Ask about NovaTech business data",
-            key="business_question",
+            "Business question",
+            value=st.session_state[
+                "business_question"
+            ],
             placeholder=(
-                "Example: Which customer segment "
-                "generates the most revenue?"
-            )
+                "Example: Which country generates "
+                "the most revenue?"
+            ),
+            key="business_question_input"
         )
 
-        # --------------------------------------------------
+        # ==================================================
         # ASK BUTTON
-        # --------------------------------------------------
+        # ==================================================
 
         if st.button(
             "Ask Business Analytics",
@@ -721,20 +861,15 @@ elif page == "Business Analytics":
 
             if business_question.strip():
 
-                with st.spinner(
-                    "Analyzing PostgreSQL "
-                    "business data..."
-                ):
+                try:
 
-                    result = handle_query(
-                        business_question
-                    )
+                    with st.spinner(
+                        "Analyzing NovaTech business data..."
+                    ):
 
-                # ==========================================
-                # SQL ANSWER
-                # ==========================================
-
-                if result["route"] == "SQL":
+                        result = run_business_query(
+                            business_question
+                        )
 
                     st.markdown("### 📌 Answer")
 
@@ -742,32 +877,25 @@ elif page == "Business Analytics":
                         result["answer"]
                     )
 
-                    if result.get("sources"):
+                    if result.get("source"):
 
                         st.caption(
                             "Data source: "
-                            + ", ".join(
-                                result["sources"]
-                            )
+                            f"{result['source']}"
                         )
 
-                # ==========================================
-                # WRONG ROUTE
-                # ==========================================
+                except Exception as error:
 
-                else:
-
-                    st.warning(
-                        "This question appears to belong "
-                        "to Company Knowledge or Churn "
-                        "Prediction. Please use the "
-                        "appropriate section."
+                    st.error(
+                        "Unable to answer the business "
+                        f"question: {error}"
                     )
 
             else:
 
                 st.warning(
-                    "Please enter a business question."
+                    "Please enter a business "
+                    "analytics question."
                 )
 
     except Exception as error:
